@@ -9,6 +9,8 @@ from .models import Game, Frame
 class ListGamesView(generics.ListAPIView):
 	queryset = Game.objects.all()
 	serializer_class = GameSerializer
+	def get(self, request):
+		return Response(status=status.HTTP_200_OK)
 
 
 class CreateNewGameView(APIView):

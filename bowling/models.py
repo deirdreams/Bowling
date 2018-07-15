@@ -4,9 +4,10 @@ class Game(models.Model):
 	# gameId = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	gameId = models.AutoField(primary_key=True)
 	currentFrameIndex = models.IntegerField(default=0)
-	currentThrowIndex = models.IntegerField(default=0)
+	currentThrowIndex = models.IntegerField(default=0) #keep track of the num throws for purposes of strikes
 	gameOver = models.BooleanField(default=False)
 	currentScore = models.IntegerField(default=0)
+	lastSpareIndex = models.IntegerField(default=-1)
 
 
 	# @classmethod
@@ -26,19 +27,49 @@ class Game(models.Model):
 	def getFrames(self):
 		return self.frames.all()
 
-	#TODO: update with game logic
-	def updateFrame(self, score):
+	def updateScores(self, score):
 		currentFrame = self.frames.all()[self.currentFrameIndex]
-		if currentFrame.finished():
-			self.currentFrameIndex += 1	
-		if self.currentFrameIndex > 9:
-			self.gameOver = True
 		currentFrame.updateScores(score)
+		self.currentScore += score
+		#Update previous frames if they were strikes/spares
+		if self.currentFrameIndex != 9:
+			self.handlePrevStrikes(score)
+			self.handlePrevSpares(score)
+
+		if score == 10:
+			self.addStrikeFrame()
+
+		if currentFrame.isSpare:
+			self.lastSpareIndex = self.currentFrameIndex
+
+		#Change current frame index if necessary
+		if (score == 10 or currentFrame.throwIndex > 1) and (self.currentFrameIndex != 9):
+			self.currentFrameIndex += 1	
+
+		self.currentThrowIndex += 1
+		self.save()
+
+	def handlePrevStrikes(self, score):
+		strikes = self.strike_frame.all()
+		if len(strikes) == 0:
+			return
+		#loop through strikes and update score to previous frames if necessary
+		for strike in strikes:
+			if abs(self.currentThrowIndex - strike.frameId) < 3:
+				self.frames.all()[strike.frameId].updateAddScore(score)
+				self.currentScore += score
+		self.save()
+
+	def handlePrevSpares(self, score):
+		if self.lastSpareIndex == -1: return
+		self.frames.all()[self.lastSpareIndex].updateAddScore(score)
+		self.currentScore += score
+		self.lastSpareIndex = -1
 		self.save()
 
 	#keep index of the frame with the strike
 	def addStrikeFrame(self):
-		strikeFrame = StrikeFrame(frameId=currentFrameIndex, gameId=self)
+		strikeFrame = StrikeFrame(frameId=self.currentFrameIndex, gameId=self)
 		self.strike_frame.add(strikeFrame, bulk=False)
 		self.save()
 
@@ -48,10 +79,11 @@ class Game(models.Model):
 
 class Frame(models.Model):
 	gameId = models.ForeignKey('Game', on_delete=models.CASCADE, related_name='frames', default=0)
-	throwIndex = models.IntegerField(default=0, choices=[(i,i) for i in range(2)])
+	throwIndex = models.IntegerField(default=0, choices=[(i,i) for i in range(3)])
 	firstThrow = models.IntegerField(default=0)
 	secondThrow = models.IntegerField(default=0)
 	thirdThrow = models.IntegerField(default=0) #for the third throw in last frame
+	addScore = models.IntegerField(default=0) #additional score added for strike/spare
 	totalScore = models.IntegerField(default=0)
 	isSpare = models.BooleanField(default=False)
 	isStrike = models.BooleanField(default=False)
@@ -72,17 +104,14 @@ class Frame(models.Model):
 		self.updateTotalScore()
 		self.save()
 
+	def updateAddScore(self, score):
+		self.addScore += score
+		self.updateTotalScore()
+		self.save()
+
 	def updateTotalScore(self):
-		self.totalScore = self.firstThrow + self.secondThrow + self.thirdThrow
-
-	def getFirstThrow(self):
-		return self.firstThrow
-
-	def getSecondThrow(self):
-		return self.secondThrow
-
-	def getThrowIndex(self):
-		return self.throwIndex
+		self.totalScore = self.firstThrow + self.secondThrow + self.thirdThrow + self.addScore
+		self.save()
 
 	def __str__(self):
 		return "First Throw: {}, Second Throw: {}".format(self.firstThrow, self.secondThrow)
