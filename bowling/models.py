@@ -6,14 +6,22 @@ class Game(models.Model):
 	currentFrameIndex = models.IntegerField(default=0)
 	currentThrowIndex = models.IntegerField(default=0)
 	gameOver = models.BooleanField(default=False)
+	currentScore = models.IntegerField(default=0)
 
 
-	@classmethod
-	def create(cls, sender, instance):
+	# @classmethod
+	# def create(cls, sender, instance):
+	# 	for i in range(10):
+	# 		frame = Frame(gameId = instance)
+	# 		instance.frames.add(frame, bulk=False)
+	# 	instance.save()
+
+	def initialiseFrames(self):
 		for i in range(10):
-			frame = Frame(gameId = instance)
-			instance.frames.add(frame, bulk=False)
-		instance.save()
+			frame = Frame(gameId = self)
+			frame.save()
+			self.frames.add(frame, bulk=False)
+		self.save()
 
 	def getFrames(self):
 		return self.frames.all()
