@@ -45,7 +45,7 @@ class Game(models.Model):
 		#Change current frame index if necessary
 		if (score == 10 or currentFrame.throwIndex > 1) and (self.currentFrameIndex != 9):
 			self.currentFrameIndex += 1	
-
+	
 		self.currentThrowIndex += 1
 		self.save()
 
