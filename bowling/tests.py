@@ -5,6 +5,8 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework.views import status
 from .models import Game, Frame
 from .serializers import GameSerializer, FrameSerializer
+from collections import OrderedDict
+import json
 
 
 
@@ -74,7 +76,8 @@ class BaseViewTest(APITestCase):
 
 	@staticmethod
 	def createGame():
-		Game.objects.create()
+		newGame = Game.objects.create()
+		newGame.initialiseFrames()
 
 	def setUp(self):
 		self.createGame()
@@ -89,6 +92,41 @@ class BaseViewTest(APITestCase):
 		self.assertEqual(response.data, serialized.data)
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+	def test_postUpdatesGame(self):
+		response = self.client.post('/games/1/', json.dumps({'score': 3}), content_type="application/json")
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	def test_postUpdatesScore(self):
+		self.client.post('/games/1/', json.dumps({'score': 3}), content_type="application/json")
+		self.client.post('/games/1/', json.dumps({'score': 4}), content_type="application/json")
+		expected = OrderedDict([('firstThrow', 3), ('secondThrow', 4), ('isSpare', False), ('isStrike', False), ('totalScore', 7)])
+		response = self.client.get('/games/1/')
+		self.assertEqual(response.data['frames'][0], expected)
+
+	def test_postUpdatesScoreAfterStrike(self):
+		self.client.post('/games/1/', json.dumps({'score': 10}), content_type="application/json")
+		self.client.post('/games/1/', json.dumps({'score': 5}), content_type="application/json")
+		expected = OrderedDict([('firstThrow', 10), ('secondThrow', 0), ('isSpare', False), ('isStrike', True), ('totalScore', 15)])
+		response = self.client.get('/games/1/')
+		self.assertEqual(response.data['frames'][0], expected)
+
+	def test_postUpdatesScoreAfterSpare(self):
+		self.client.post('/games/1/', json.dumps({'score': 4}), content_type="application/json")
+		self.client.post('/games/1/', json.dumps({'score': 6}), content_type="application/json")
+		self.client.post('/games/1/', json.dumps({'score': 2}), content_type="application/json")
+		self.client.post('/games/1/', json.dumps({'score': 3}), content_type="application/json")
+		expected = OrderedDict([('firstThrow', 4), ('secondThrow', 6), ('isSpare', True), ('isStrike', False), ('totalScore', 12)])
+		response = self.client.get('/games/1/')
+		self.assertEqual(response.data['frames'][0], expected)
+
 	def test_getNewGame(self):
 		response = self.client.get('/games/create/')
 		self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+	def test_getSpecificGame(self):
+		response = self.client.get('/games/1/')
+		self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+	def test_throwsErrorForInvalidScore(self):
+		response = self.client.post('/games/1/', json.dumps({'score': 45}), content_type="application/json")
+		self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

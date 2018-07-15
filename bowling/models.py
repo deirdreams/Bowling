@@ -1,21 +1,12 @@
 from django.db import models
 
 class Game(models.Model):
-	# gameId = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	gameId = models.AutoField(primary_key=True)
 	currentFrameIndex = models.IntegerField(default=0)
 	currentThrowIndex = models.IntegerField(default=0) #keep track of the num throws for purposes of strikes
 	gameOver = models.BooleanField(default=False)
 	currentScore = models.IntegerField(default=0)
 	lastSpareIndex = models.IntegerField(default=-1)
-
-
-	# @classmethod
-	# def create(cls, sender, instance):
-	# 	for i in range(10):
-	# 		frame = Frame(gameId = instance)
-	# 		instance.frames.add(frame, bulk=False)
-	# 	instance.save()
 
 	def initialiseFrames(self):
 		for i in range(10):
@@ -29,6 +20,9 @@ class Game(models.Model):
 
 	def updateScores(self, score):
 		currentFrame = self.frames.all()[self.currentFrameIndex]
+		if not self.checkValidScore(score, currentFrame):
+			raise ValueError("Score is invalid.")
+
 		currentFrame.updateScores(score)
 		self.currentScore += score
 		#Update previous frames if they were strikes/spares
@@ -45,9 +39,15 @@ class Game(models.Model):
 		#Change current frame index if necessary
 		if (score == 10 or currentFrame.throwIndex > 1) and (self.currentFrameIndex != 9):
 			self.currentFrameIndex += 1	
-	
+
 		self.currentThrowIndex += 1
 		self.save()
+
+	def checkValidScore(self, score, frame):
+		if score > 10 or (score > 10-frame.totalScore):
+			return False
+		else:
+			return True
 
 	def handlePrevStrikes(self, score):
 		strikes = self.strike_frame.all()

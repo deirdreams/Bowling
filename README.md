@@ -38,4 +38,4 @@ Built-in Django admin page
 
  `/games/{gameId}/`
   - **GET**: get game by gameId
-  - **PUT**: update score
+  - **POST**: update score, e.g. {"score":4}

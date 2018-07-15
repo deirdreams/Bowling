@@ -5,19 +5,17 @@ from rest_framework.response import Response
 from django.http import HttpResponse
 from .serializers import GameSerializer, FrameSerializer, NewGameSerializer
 from .models import Game, Frame
+import json
 
 class ListGamesView(generics.ListAPIView):
 	queryset = Game.objects.all()
 	serializer_class = GameSerializer
-	def get(self, request):
-		return Response(status=status.HTTP_200_OK)
 
 
 class CreateNewGameView(APIView):
 	#Create a new game
 	def get(self, request):
-		newGame = Game()
-		newGame.save()
+		newGame = Game.objects.create()
 		newGame.initialiseFrames()
 		return Response(NewGameSerializer(newGame).data, status=status.HTTP_201_CREATED)
 
@@ -32,10 +30,12 @@ class BowlingApiView(APIView):
 			return Response(status=status.HTTP_400_BAD_REQUEST)
 
 	#Update a game 
-	def put(self, request, gameId, score):
+	def post(self, request, gameId):
 		try:
+			body = json.loads(request.body)
+			score = body["score"]
 			game = Game.objects.get(gameId=gameId)
-			game.updateFrame(score)
+			game.updateScores(score)
 			return Response(status=status.HTTP_200_OK)
-		except IndexError as e:
+		except (IndexError, ValueError) as e:
 			return Response(status=status.HTTP_400_BAD_REQUEST)
