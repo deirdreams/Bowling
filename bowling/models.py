@@ -23,6 +23,9 @@ class Game(models.Model):
 		if not self.checkValidScore(score, currentFrame):
 			raise ValueError("Score is invalid.")
 
+		if self.gameOver:
+			raise ValueError("This game is over.")
+
 		currentFrame.updateScores(score)
 		self.currentScore += score
 		#Update previous frames if they were strikes/spares
@@ -41,7 +44,16 @@ class Game(models.Model):
 			self.currentFrameIndex += 1	
 
 		self.currentThrowIndex += 1
+		self.gameOver = self.checkGameOver(currentFrame)
 		self.save()
+
+	def checkGameOver(self, currentFrame):
+		if self.currentFrameIndex < 9:
+			return False
+		frameStrikeOrSpare = (currentFrame.isSpare or currentFrame.isStrike) and currentFrame.throwIndex > 2
+		frameNormal =  (not(currentFrame.isSpare and currentFrame.isStrike)) and currentFrame.throwIndex > 1
+		return frameStrikeOrSpare or frameNormal
+
 
 	def checkValidScore(self, score, frame):
 		if score > 10 or (score > 10-frame.totalScore):

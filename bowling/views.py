@@ -3,13 +3,13 @@ from rest_framework import generics, status
 from rest_framework.views import APIView 
 from rest_framework.response import Response
 from django.http import HttpResponse
-from .serializers import GameSerializer, FrameSerializer, NewGameSerializer
+from .serializers import GameSerializer, FrameSerializer, NewGameSerializer, GameSerializerNoFrames
 from .models import Game, Frame
 import json
 
 class ListGamesView(generics.ListAPIView):
 	queryset = Game.objects.all()
-	serializer_class = GameSerializer
+	serializer_class = GameSerializerNoFrames
 
 
 class CreateNewGameView(APIView):

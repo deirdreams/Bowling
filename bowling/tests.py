@@ -1,10 +1,9 @@
 from django.test import TestCase
 from django.urls import reverse
-from mock import patch
 from rest_framework.test import APITestCase, APIClient
 from rest_framework.views import status
 from .models import Game, Frame
-from .serializers import GameSerializer, FrameSerializer
+from .serializers import GameSerializer, FrameSerializer, GameSerializerNoFrames
 from collections import OrderedDict
 import json
 
@@ -70,6 +69,21 @@ class GameTest(TestCase):
 		self.assertEqual(self.game.frames.all()[0].totalScore, 14)
 		self.assertEqual(self.game.currentScore, 20)
 
+	def test_lastFrameStrikeHasThreeThrows(self):
+		for i in range(8): #fill in first 9 frames to get to last
+			self.game.updateScores(4)
+			self.game.updateScores(2)
+		self.game.updateScores(10)
+		self.game.updateScores(9)
+		self.game.updateScores(0)
+		self.assertEqual(self.game.frames.all()[0].throwIndex, 2)
+
+	def test_updatesGameOver(self):
+		for i in range(9): #fill in all frames
+			self.game.updateScores(4)
+			self.game.updateScores(2)
+		self.assertEqual(self.game.gameOver, True)
+
 #API
 class BaseViewTest(APITestCase):
 	client = APIClient()
@@ -88,7 +102,7 @@ class BaseViewTest(APITestCase):
 		response = self.client.get('/games/')
 
 		expected = Game.objects.all()
-		serialized = GameSerializer(expected, many=True)
+		serialized = GameSerializerNoFrames(expected, many=True)
 		self.assertEqual(response.data, serialized.data)
 		self.assertEqual(response.status_code, status.HTTP_200_OK)
 

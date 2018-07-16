@@ -11,8 +11,13 @@ class NewGameSerializer(serializers.HyperlinkedModelSerializer):
 		model = Game
 		fields = ['gameId']
 
+class GameSerializerNoFrames(serializers.HyperlinkedModelSerializer):
+	class Meta:
+		model = Game
+		fields = ['gameId', 'currentScore', 'gameOver']
+
 class GameSerializer(serializers.HyperlinkedModelSerializer):
 	frames = FrameSerializer(many=True)
 	class Meta:
 		model = Game
-		fields = ['gameId', 'currentScore', 'frames']
+		fields = ['gameId', 'currentScore', 'gameOver', 'frames']
